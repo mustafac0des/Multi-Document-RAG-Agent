@@ -1,7 +1,7 @@
 import os
 import re
+import gradio as gr
 import yaml
-import chromadb
 
 from sentence_transformers import SentenceTransformer
 from transformers import T5Tokenizer, T5ForConditionalGeneration
@@ -9,11 +9,17 @@ from langchain_core.documents import Document
 from langchain_chroma import Chroma
 from langchain_core.embeddings import Embeddings
 
-DATA_DIR = "company_documents"
-USER = {"role": "engineer"}
+from dotenv import load_dotenv
+load_dotenv()
 
-tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-small")
-model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-small")
+
+
+DATA_DIR = "company_documents"
+USER = {"role": "guest"}
+
+
+tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-base")
+model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-base")
 embedder_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 class SentenceTransformerEmbeddings(Embeddings):
@@ -101,9 +107,16 @@ def ingest_documents():
     if all_docs:
         vectorstore.add_documents(all_docs)
 
-def generate(prompt, max_new_tokens=150):
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=256)
-    outputs = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=True, temperature=0.7, top_p=0.9)
+def generate(prompt):
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    outputs = model.generate(
+    **inputs,
+    max_new_tokens=150,
+    do_sample=True,
+    temperature=0.7,
+    top_p=0.9
+    )
+
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 def retrieve(query):
@@ -126,7 +139,8 @@ def query_system(query):
         return "I cannot help you with that. Try asking something else!"
 
     context = "\n\n---\n\n".join([d.page_content for d in docs[:2]])
-    prompt = f"""You are a question-answering assistant. Use the following context to answer the question. If you don't know the answer, say, "I cannot help you with that. Try asking something else!" Provide concise and accurate answers based on the provided context.
+    prompt = f"""You are a question-answering assistant. Use the following context to answer the question. If the context does not suggest a reliable answer, say, "I cannot help you with that!" Write detailed and precise answers only.  
+    
     Context:
     {context}
 
@@ -136,14 +150,27 @@ def query_system(query):
 
     return generate(prompt)
 
+print("Initializing system...")
+ingest_documents()
+print("Ready.\n")
+
+def chat_function(message, history, role):
+    USER["role"] = role
+    return query_system(message)
+
+demo = gr.ChatInterface(
+    fn=chat_function,
+    title="Aether Corporations",
+    description="Aether Corporations Chatbot\nAsk questions based on your company's internal documents. Access is controlled by your role.",
+    additional_inputs=[
+        gr.Dropdown(
+            choices=["guest", "engineer", "hr", "finance", "executive"], 
+            value="guest", 
+            label="Simulated User Role",
+            info="Select a role to see how document access control affects responses."
+        )
+    ]
+)
+
 if __name__ == "__main__":
-    print("Initializing system...")
-    ingest_documents()
-    print("Ready.\n")
-
-    while True:
-        q = input("Ask a question (or 'exit'): ")
-        if q.lower() == "exit":
-            break
-
-        print(f"\nResponse:\n{query_system(q)}\n")
+    demo.launch()
