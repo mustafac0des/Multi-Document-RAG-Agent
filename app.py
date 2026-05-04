@@ -161,7 +161,7 @@ def chat_function(message, history, role):
 demo = gr.ChatInterface(
     fn=chat_function,
     title="Aether Corporations",
-    description="Aether Corporations Chatbot\nAsk questions based on your company's internal documents. Access is controlled by your role.",
+    description="Role-Based Access Control RAG Agent",
     additional_inputs=[
         gr.Dropdown(
             choices=["guest", "engineer", "hr", "finance", "executive"], 
