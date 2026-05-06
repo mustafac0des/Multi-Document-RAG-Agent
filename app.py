@@ -2,6 +2,7 @@ import os
 import re
 import gradio as gr
 import yaml
+import random
 
 from sentence_transformers import SentenceTransformer
 from transformers import T5Tokenizer, T5ForConditionalGeneration
@@ -12,11 +13,8 @@ from langchain_core.embeddings import Embeddings
 from dotenv import load_dotenv
 load_dotenv()
 
-
-
 DATA_DIR = "company_documents"
 USER = {"role": "guest"}
-
 
 tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-base")
 model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-base")
@@ -108,14 +106,18 @@ def ingest_documents():
         vectorstore.add_documents(all_docs)
 
 def generate(prompt):
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
     outputs = model.generate(
-    **inputs,
-    max_new_tokens=150,
-    do_sample=True,
-    temperature=0.7,
-    top_p=0.9
-    )
+            **inputs,
+            max_new_tokens=300,
+            min_new_tokens=10,
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.9,
+            repetition_penalty=1.2,
+            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.eos_token_id,
+        )
 
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
@@ -131,24 +133,61 @@ def filter_docs(docs):
 
     return filtered
 
+def get_suggested_question(role):
+    try:
+        data = vectorstore.get()
+        metadatas = data.get("metadatas", [])
+        if not metadatas:
+            return "Could you summarize the main policies?"
+            
+        valid_docs = []
+        for meta in metadatas:
+            roles = meta.get("allowed_roles", [])
+            if role in roles:
+                valid_docs.append(meta)
+                
+        if valid_docs:
+            chosen = random.choice(valid_docs)
+            section = chosen.get("section", "").lstrip('#').strip()
+            if section:
+                return f"{section}{"?" if "?" not in section else ""}"
+    except Exception as e:
+        print(f"Error generating suggestion: {e}")
+
 def query_system(query):
     docs = retrieve(query)
     docs = filter_docs(docs)
 
+    pattern = r"^.*\?\n"
+
+    for doc in docs:
+        doc.page_content = re.sub(pattern, "", doc.page_content, flags=re.DOTALL).strip()
+
+    if len(query) < 3:
+        return "Your query is too short. Please try again."
+
+    if len(query) > 80:
+        return "Your query is too long. Please try again."
+
     if not docs:
         return "I cannot help you with that. Try asking something else!"
 
-    context = "\n\n---\n\n".join([d.page_content for d in docs[:2]])
-    prompt = f"""You are a question-answering assistant. Use the following context to answer the question. If the context does not suggest a reliable answer, say, "I cannot help you with that!" Write detailed and precise answers only.  
-    
+    context = ' '.join([d.page_content for d in docs[:2]])
+
+    prompt = f"""
     Context:
     {context}
 
-    Question:
+    You are a question-answering assistant. Use the following context to answer the question. If the context does not suggest a reliable answer, say, "I cannot help you with that!" Write detailed, product and proper English answers ONLY. The question is:
     {query}
+
+
     """
 
-    return generate(prompt)
+    answer = generate(prompt)
+    suggestion = get_suggested_question(USER["role"])
+    
+    return f"{answer}\n\n💡 **Suggested next question:** {suggestion}"
 
 print("Initializing system...")
 ingest_documents()
@@ -161,7 +200,7 @@ def chat_function(message, history, role):
 demo = gr.ChatInterface(
     fn=chat_function,
     title="Aether Corporations",
-    description="Role-Based Access Control RAG Agent",
+    description="Role-Based Access Control / Multi-Document RAG Agent",
     additional_inputs=[
         gr.Dropdown(
             choices=["guest", "engineer", "hr", "finance", "executive"], 
