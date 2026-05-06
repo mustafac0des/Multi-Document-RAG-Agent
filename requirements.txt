@@ -1,0 +1,8 @@
+gradio
+transformers
+sentence-transformers
+langchain-core
+langchain-chroma
+pyyaml
+python-dotenv
+torch
