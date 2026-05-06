@@ -1,3 +1,14 @@
+---
+title: RBAC RAG Agent
+emoji: 🏢
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: "4.44.1"
+app_file: app.py
+pinned: false
+---
+
 # 👥 Role-Based Access Control RAG Agent
 
 A powerful and secure AI chatbot that allows employees to query internal company documents with strict role-based access control.
