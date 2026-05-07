@@ -6,3 +6,4 @@ langchain-chroma
 pyyaml
 python-dotenv
 torch
+huggingface_hub
