@@ -1,14 +1,15 @@
 ---
-title: RBAC RAG Agent
-emoji: 🚀
-colorFrom: blue
-colorTo: indigo
+title: Multi Document RAG Agent
+emoji: ⚡
+colorFrom: yellow
+colorTo: red
 sdk: gradio
 sdk_version: 6.14.0
-python_version: '3.11'
+python_version: '3.13'
 app_file: app.py
-hf_oauth: true
 pinned: false
+license: apache-2.0
+short_description: Multi-Document RAG Agent
 ---
 
 # 👥 Role-Based Access Control RAG Agent
