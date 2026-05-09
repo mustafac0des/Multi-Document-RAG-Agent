@@ -60,7 +60,9 @@ def parse_markdown(file_path):
         section = section.strip()
         if not section: continue
         lines = section.split("\n")
-        if section_title.strip("-") == "": continue
+        section_title = lines[0].strip()
+        if section_title.strip("-") == "":
+            continue
 
         docs.append(
             Document(
