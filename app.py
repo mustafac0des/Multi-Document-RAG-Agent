@@ -137,7 +137,11 @@ def respond(
     prompt = f"You are a question-answering chatbot for Aether Corporations. Answer the questionas much as you can extract from the given context. Do not hint out that you are using context by saying 'Based on the context' or 'From the information provided' or related phrases, just answer the question. If the context is irrelevant, say that you cannot help with that query.\n\nContext:\n{context}\n\nQuestion: {message}"
 
     token = HF_TOKEN
-    client = InferenceClient(model="meta-llama/Meta-Llama-3-8B-Instruct")
+    client = InferenceClient(
+        model="meta-llama/Llama-3.2-1B-Instruct",
+        provider="featherless-ai",
+        token=token
+    )
 
     messages = [{"role": "system", "content": system_message}]
     for msg in history:
